@@ -1,0 +1,52 @@
+kind: pipeline
+type: docker
+name: hello world
+
+steps:
+- name: greeting
+  image: alpine
+  commands:
+  - echo hello
+  - echo world
+  - echo $$PATH
+  - echo $$PATH
+  - echo $$DRONE_RUNNER_NAME
+  - echo $$DRONE_GITEA_SERVER
+  - ping -c 4 minio
+  - nslookup minio.
+
+---
+kind: pipeline
+type: docker
+name: run tests
+
+steps:
+  - name: test
+    image: mcr.microsoft.com/playwright:v1.46.1-jammy
+    commands:
+      - npm install
+      - export S3_TARGET="test-results-$(date "+%Y-%m-%dT%H-%M-%S")"
+      - mkdir "$S3_TARGET"
+      - ln -s "$S3_TARGET" test-results
+      - ls -la
+      - npx playwright test
+  - name: add timestamp to test-results
+    image: alpine
+    commands:
+      - ls -la
+      - mv "test-results" "test-results-$(date "+%Y-%m-%dT%H-%M-%S")"
+      - ls -la
+  - name: save debug info
+    image: plugins/s3
+    settings:
+      bucket: playwright-test-results
+      access_key: csq0eSlyhSwM2y013jJQ
+      secret_key: St02iDztUUlPXOyB0iDvASGzUrm6iEMc3AUJrhTh
+      source: test-results-*/**/*
+      #source: test-results/**/*
+      path_style: true
+      target: /
+      endpoint: http://minio:9000
+      #region: ""
+# TODO: run last two steps when there are some traces
+
